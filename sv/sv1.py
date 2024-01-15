@@ -24,6 +24,18 @@ def load_fasta(filename):
 
     return data
 
+def reverse_comp(data):
+    rcomp = {97:b't', 99:b'g', 103:b'c', 116:b'a'}
+    for i in rcomp:
+        print('key: %s (%s)  val: %s' % (i, str(i), rcomp[i]))
+    rdata = bytearray()
+    for c in data[::-1]:
+        try:
+            rdata.extend(rcomp[c])
+        except KeyError as e:
+            print('%s not a valid key?' % c)
+            return None
+    return rdata
 
 def get_pattern_locations(data):
     loc = []
@@ -81,33 +93,40 @@ def eval_read(read, ref_dist, ref_patloc):
 
     if verbose > 0:
         print('insertion starts: %s ends: %s' % (str(read_starts), str(read_ends)))
-    read_start = read_starts[0]
-    read_end = read_ends[0]
-    delta_ref = ref_patloc[read_end] - ref_patloc[read_start]
-    delta_read = read_patloc[-6] - read_patloc[0]
-    delta_len = delta_read - delta_ref
-    print('%s is roughly %dbp in length' % ('insertion' if delta_len > 0 else 'deletion', abs(delta_len)))
+    if len(read_starts) > 0 and len(read_ends) > 0:
+        read_start = read_starts[0]
+        read_end = read_ends[0]
+        delta_ref = ref_patloc[read_end] - ref_patloc[read_start]
+        delta_read = read_patloc[-6] - read_patloc[0]
+        delta_len = delta_read - delta_ref
+        print('%s is roughly %dbp in length' % ('insertion' if delta_len > 0 else 'deletion', abs(delta_len)))
 
 
 # ---------
 
 # load a reference genome
-genome = load_fasta('ecoli.fasta')
+genome_f = load_fasta('ecoli.fasta')
+
+print('making rcomp genome')
+genome_r = reverse_comp(genome_f)
+print('done')
 
 # generate location array where we find each pattern in the genome
-pattern_locations = get_pattern_locations(genome)
-print('found %d occurences of pattern' % len(pattern_locations))
+pattern_locations_f = get_pattern_locations(genome_f)
+pattern_locations_r = get_pattern_locations(genome_r)
+print('found f:%d r:%d occurences of pattern' % (len(pattern_locations_f), len(pattern_locations_r)))
 
 # find distances between pattern starts
-dist = get_dist_from_locations(pattern_locations)
+dist_f = get_dist_from_locations(pattern_locations_f)
+dist_r = get_dist_from_locations(pattern_locations_r)
 
 # test 1 - use a known pattern, then try and find it in our distance array, as well as other similar ones
 pattern_start = 50
 pattern_len = 6 # this represents len+1 pattern locations since its the spacing between them
-pattern = dist[pattern_start:pattern_start+pattern_len]
-print('pattern: %s' % str(pattern))
+pattern = dist_f[pattern_start:pattern_start+pattern_len]
+print('pattern_f: %s' % str(pattern))
 
-starts = find_starts(pattern, dist)
+starts = find_starts(pattern, dist_f)
 print('found %d candidate starts' % len(starts))
 print('first few starts: %s' % str(starts[:5]))
 
@@ -117,18 +136,22 @@ print('first few starts: %s' % str(starts[:5]))
 # generate an insertion by starting with a portion of the genome and inserting random bases
 np.random.seed(1134)
 base_lookup = (b'a',b'c',b'g',b't')
-read_insertion = genome[1000000:2000000]
+read_insertion = genome_f[1000000:2000000]
 insertion_len = 20000
 for i in range(insertion_len):
     base = base_lookup[np.random.randint(0,4)]
     read_insertion.extend(base)
-read_insertion.extend(genome[2000000:2500000])
+read_insertion.extend(genome_f[2000000:2500000])
 print('read insertion is length: %d' % len(read_insertion))
 
 # generate a 100kb deletion
-read_deletion = genome[400000:400000+200000]
-read_deletion.extend(genome[700000:1000000])
+read_deletion = genome_r[400000:400000+200000]
+read_deletion.extend(genome_r[700000:1000000])
 
-eval_read(read_insertion, dist, pattern_locations)
-eval_read(read_deletion, dist, pattern_locations)
+print('forward eval:')
+eval_read(read_insertion, dist_f, pattern_locations_f)
+eval_read(read_deletion, dist_f, pattern_locations_f)
+print('rcomp eval:')
+eval_read(read_insertion, dist_r, pattern_locations_r)
+eval_read(read_deletion, dist_r, pattern_locations_r)
 
