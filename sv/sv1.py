@@ -97,7 +97,7 @@ def eval_read(read, ref_dist, ref_patloc):
         read_start = read_starts[0]
         read_end = read_ends[0]
         delta_ref = ref_patloc[read_end] - ref_patloc[read_start]
-        delta_read = read_patloc[-6] - read_patloc[0]
+        delta_read = read_patloc[-7] - read_patloc[0] # pattern locations are one more than distance locations
         delta_len = delta_read - delta_ref
         print('%s is roughly %dbp in length' % ('insertion' if delta_len > 0 else 'deletion', abs(delta_len)))
 
@@ -115,12 +115,13 @@ print('done')
 pattern_locations_f = get_pattern_locations(genome_f)
 pattern_locations_r = get_pattern_locations(genome_r)
 print('found f:%d r:%d occurences of pattern' % (len(pattern_locations_f), len(pattern_locations_r)))
-
+print('first few: %s' % str(pattern_locations_f[:6]))
 # find distances between pattern starts
 dist_f = get_dist_from_locations(pattern_locations_f)
 dist_r = get_dist_from_locations(pattern_locations_r)
 
 # test 1 - use a known pattern, then try and find it in our distance array, as well as other similar ones
+print('Running test 1')
 pattern_start = 50
 pattern_len = 6 # this represents len+1 pattern locations since its the spacing between them
 pattern = dist_f[pattern_start:pattern_start+pattern_len]
@@ -134,6 +135,7 @@ print('first few starts: %s' % str(starts[:5]))
 # not clear yet on translocations, but likely this is just whether the read maps to the known location in the genome or not
 
 # generate an insertion by starting with a portion of the genome and inserting random bases
+print('Running on ecoli')
 np.random.seed(1134)
 base_lookup = (b'a',b'c',b'g',b't')
 read_insertion = genome_f[1000000:2000000]
